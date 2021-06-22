@@ -8,16 +8,16 @@ public class Blockchain {
     private static String latestHash = "0";
 
     public void addBlock() {
-        Block newBlock = Block.createBlock(idCount, latestHash);
-        chain.add(newBlock);
-        idCount += 1;
-        latestHash = newBlock.getHash();
+        Block newBlock = Block.createBlock(getIdCount(), getLatestHash());
+        getChain().add(newBlock);
+        setIdCount(getIdCount() + 1);
+        setLatestHash(newBlock.getHash());
     }
 
     public void isValidated() {
-        for (int i = 1; i < chain.size(); i++) {
-            String previousHash = chain.get(i).getPreviousHash();
-            String hashOfPreviousBlock = chain.get(i - 1).getHash();
+        for (int i = 1; i < getChain().size(); i++) {
+            String previousHash = getChain().get(i).getPreviousHash();
+            String hashOfPreviousBlock = getChain().get(i - 1).getHash();
             if (!previousHash.equals(hashOfPreviousBlock)) {
                 throw new RuntimeException("This blockchain is contaminated.");
             }
@@ -25,10 +25,30 @@ public class Blockchain {
     }
 
     public void printAllBlock() {
-        for (int i = 0; i < chain.size() - 1; i++) {
-            chain.get(i).printBlock();
+        for (int i = 0; i < getChain().size() - 1; i++) {
+            getChain().get(i).printBlock();
             System.out.println();
         }
-        chain.get(chain.size() - 1).printBlock();
+        getChain().get(getChain().size() - 1).printBlock();
+    }
+
+    public ArrayList<Block> getChain() {
+        return chain;
+    }
+
+    public static int getIdCount() {
+        return idCount;
+    }
+
+    public static String getLatestHash() {
+        return latestHash;
+    }
+
+    private static void setIdCount(int idCount) {
+        Blockchain.idCount = idCount;
+    }
+
+    private static void setLatestHash(String latestHash) {
+        Blockchain.latestHash = latestHash;
     }
 }

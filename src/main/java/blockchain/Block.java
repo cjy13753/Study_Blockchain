@@ -19,19 +19,19 @@ public class Block {
 
     public static Block createBlock(int id, String previousHash) {
         Block block = new Block(id, previousHash);
-        String allFieldsCombined = block.id + block.timestamp + block.previousHash;
-        block.hash = StringUtil.applySha256(allFieldsCombined);
+        String allFieldsCombined = block.getId() + block.getTimestamp() + block.getPreviousHash();
+        block.setHash(StringUtil.applySha256(allFieldsCombined));
         return block;
     }
 
     public void printBlock() {
         System.out.println("Block:");
-        System.out.println("Id: " + id);
-        System.out.println("Timestamp: " + timestamp);
+        System.out.println("Id: " + getId());
+        System.out.println("Timestamp: " + getTimestamp());
         System.out.println("Hash of the previous block: ");
-        System.out.println(previousHash);
+        System.out.println(getPreviousHash());
         System.out.println("Hash of the block: ");
-        System.out.println(hash);
+        System.out.println(getHash());
     }
 
     public String getHash() {
@@ -40,5 +40,17 @@ public class Block {
 
     public String getPreviousHash() {
         return previousHash;
+    }
+
+    public int getId() {
+        return id;
+    }
+
+    public long getTimestamp() {
+        return timestamp;
+    }
+
+    private void setHash(String hash) {
+        this.hash = hash;
     }
 }
