@@ -2,10 +2,13 @@ package blockchain;
 
 import blockchain.utility.StringUtil;
 
+import java.io.Serializable;
 import java.util.Date;
 import java.util.Random;
 
-public class Block {
+public class Block implements Serializable {
+    private static final long serialVersionUID = 1234L;
+
     private final int id;
     private final long timestamp;
     private final String hash;
@@ -64,7 +67,7 @@ public class Block {
         System.out.println(getPreviousHash());
         System.out.println("Hash of the block: ");
         System.out.println(getHash());
-        System.out.println(String.format("Block was generating for %.1f seconds", getGenerationTime()));
+        System.out.printf("Block was generating for %.1f seconds\n", getGenerationTime());
     }
 
     public String getHash() {
