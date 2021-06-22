@@ -4,11 +4,16 @@ import java.util.ArrayList;
 
 public class Blockchain {
     private final ArrayList<Block> chain = new ArrayList<>();
-    private static int idCount = 1;
-    private static String latestHash = "0";
+    private int idCount = 1;
+    private String latestHash = "0";
+    private int numOfZeros;
+
+    public Blockchain(int numOfZeros) {
+        this.numOfZeros = numOfZeros;
+    }
 
     public void addBlock() {
-        Block newBlock = Block.createBlock(getIdCount(), getLatestHash());
+        Block newBlock = Block.createBlock(getIdCount(), getLatestHash(), getNumOfZeros());
         getChain().add(newBlock);
         setIdCount(getIdCount() + 1);
         setLatestHash(newBlock.getHash());
@@ -22,8 +27,6 @@ public class Blockchain {
                 throw new RuntimeException("This blockchain is contaminated.");
             }
         }
-
-        System.out.println("\n===== This blockchain is valid =====\n");
     }
 
     public void printAllBlock() {
@@ -38,19 +41,23 @@ public class Blockchain {
         return chain;
     }
 
-    public static int getIdCount() {
+    public int getIdCount() {
         return idCount;
     }
 
-    public static String getLatestHash() {
+    public String getLatestHash() {
         return latestHash;
     }
 
-    private static void setIdCount(int idCount) {
-        Blockchain.idCount = idCount;
+    private void setIdCount(int idCount) {
+        this.idCount = idCount;
     }
 
-    private static void setLatestHash(String latestHash) {
-        Blockchain.latestHash = latestHash;
+    private void setLatestHash(String latestHash) {
+        this.latestHash = latestHash;
+    }
+
+    public int getNumOfZeros() {
+        return numOfZeros;
     }
 }
