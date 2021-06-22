@@ -19,9 +19,13 @@ public class Block {
 
     public static Block createBlock(int id, String previousHash) {
         Block block = new Block(id, previousHash);
-        String allFieldsCombined = block.getId() + block.getTimestamp() + block.getPreviousHash();
-        block.setHash(StringUtil.applySha256(allFieldsCombined));
+        block.setHash(calculateHash(block));
         return block;
+    }
+
+    public static String calculateHash(Block block) {
+        String allFieldsCombined = block.getId() + block.getTimestamp() + block.getPreviousHash();
+        return StringUtil.applySha256(allFieldsCombined);
     }
 
     public void printBlock() {

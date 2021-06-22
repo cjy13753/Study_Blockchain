@@ -17,11 +17,13 @@ public class Blockchain {
     public void isValidated() {
         for (int i = 1; i < getChain().size(); i++) {
             String previousHash = getChain().get(i).getPreviousHash();
-            String hashOfPreviousBlock = getChain().get(i - 1).getHash();
+            String hashOfPreviousBlock = Block.calculateHash(getChain().get(i - 1));
             if (!previousHash.equals(hashOfPreviousBlock)) {
                 throw new RuntimeException("This blockchain is contaminated.");
             }
         }
+
+        System.out.println("\n===== This blockchain is valid =====\n");
     }
 
     public void printAllBlock() {
