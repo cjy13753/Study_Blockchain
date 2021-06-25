@@ -36,7 +36,7 @@ public class Block implements Serializable {
         String allFieldsCombined;
 
         do {
-            magic = 0xffffffffL & rand.nextInt();
+            magic = Integer.toUnsignedLong(rand.nextInt());
             allFieldsCombined = Block.concatFields(id, timestamp, previousHash, magic);
             hash = StringUtil.applySha256(allFieldsCombined);
         } while (!hash.substring(0, numOfZeros).equals("0".repeat(numOfZeros)));
