@@ -41,14 +41,14 @@ public class Main {
             ExecutorService es = Executors.newFixedThreadPool(NUMBER_OF_PROCESSORS);
             logger.trace("Executor Service has been initiated");
 
-            int id = blockchain.getIdCount();
+            int id = blockchain.getChain().size() + 1;
             String latestHash = blockchain.getLastBlockHash();
             int numOfZeros = blockchain.getNumOfZeros();
 
-            Runnable runnable = () -> {
+            Runnable blockMiner = () -> {
                 try {
-                    logger.trace("Thread is processing the task");
-                    Block newBlock = Blockchain.createBlock(id, latestHash, numOfZeros);
+                    logger.trace("Started processing the task");
+                    Block newBlock = Block.createBlock(id, latestHash, numOfZeros);
                     blockchain.addBlock(newBlock);
                 } catch (Exception e) {
                     logger.error("Exception occurred while creating and adding a new block to the blockchain", e);
@@ -57,7 +57,7 @@ public class Main {
 
             for (int j = 0; j < NUMBER_OF_PROCESSORS; j++) {
                 logger.trace("task submitted");
-                es.submit(runnable);
+                es.submit(blockMiner);
             }
 
             while (blockchain.getChain().size() != i + initialNumberOfBlocks) {

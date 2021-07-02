@@ -12,8 +12,6 @@ public class Blockchain implements Serializable {
     private static final Logger logger = LoggerFactory.getLogger(Blockchain.class);
 
     private final ArrayList<Block> chain = new ArrayList<>();
-    private int idCount = 1;
-    private String lastBlockHash = "0";
     private int numOfZeros;
     private final String filePath;
 
@@ -26,8 +24,6 @@ public class Blockchain implements Serializable {
         try {
             if (isNewBlockValid(newBlock)) {
                 getChain().add(newBlock);
-                setIdCount(getIdCount() + 1);
-                setLastBlockHash(newBlock.getHash());
 
                 newBlock.printBlock();
 
@@ -51,8 +47,12 @@ public class Blockchain implements Serializable {
         }
     }
 
-    public static Block createBlock(int id, String previousHash, int numOfZeros) {
-        return Block.createBlock(id, previousHash, numOfZeros);
+    public String getLastBlockHash() {
+        if (getChain().size() == 0) {
+            return "0";
+        } else {
+            return getChain().get(getChain().size() - 1).getHash();
+        }
     }
 
     private void writeBlockchainToFile(Blockchain blockchain) {
@@ -122,22 +122,6 @@ public class Blockchain implements Serializable {
 
     public ArrayList<Block> getChain() {
         return chain;
-    }
-
-    public int getIdCount() {
-        return idCount;
-    }
-
-    public String getLastBlockHash() {
-        return lastBlockHash;
-    }
-
-    private void setIdCount(int idCount) {
-        this.idCount = idCount;
-    }
-
-    private void setLastBlockHash(String lastBlockHash) {
-        this.lastBlockHash = lastBlockHash;
     }
 
     public int getNumOfZeros() {

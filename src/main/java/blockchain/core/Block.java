@@ -27,15 +27,15 @@ public class Block implements Serializable {
         this.hash = hash;
     }
 
-    static Block createBlock(int id, String previousHash, int numOfZeros) {
-        long startTime = new Date().getTime();
-        Random rand = new Random();
+    public static Block createBlock(int id, String previousHash, int numOfZeros) {
 
         long minerID = Thread.currentThread().getId();
         long timestamp = new Date().getTime();
         long magic;
         String hash;
 
+        long startTime = new Date().getTime();
+        Random rand = new Random();
         String allFieldsCombined;
 
         do {
