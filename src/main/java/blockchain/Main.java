@@ -1,154 +1,133 @@
 package blockchain;
 
-import blockchain.core.Block;
-import blockchain.core.Blockchain;
-import blockchain.core.Message;
+import blockchain.core.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.File;
-import java.util.List;
-import java.util.Queue;
+import java.util.*;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 public class Main {
 
+    /* Configuration */
     private static final Logger logger = LoggerFactory.getLogger(Main.class);
+    private static final String filePath = "./blockchain.txt";
+    private static final int numberOfNewBlocksToCreate = 5;
+    private static final File blockchainFile = new File(filePath);
+    private static final int NUMBER_OF_PROCESSORS = Runtime.getRuntime().availableProcessors();
+    private static final boolean isBlockchainFileDeleted = true;
 
-    public static void main(String[] args) {
+    public static void main(String[] args) throws InterruptedException{
 
-        String filePath = "./blockchain.txt";
-        int numberOfNewBlocksToCreate = 3;
-        File blockchainFile = new File(filePath);
-
+        /* Mining starts */
         if (blockchainFile.isFile()) {
             Blockchain blockchain = Blockchain.readBlockchainFromFile(blockchainFile);
             if (blockchain.isLoadedChainValid()) {
-                demo(blockchain, numberOfNewBlocksToCreate, blockchain.getChain().size());
+                executeMiningCycle(blockchain);
             } else {
-                System.out.println("Your blockchain file is contaminated. Please check if you chose the right file.");
+                logger.error("Your blockchain file has been contaminated. Please check if you chose the right file.");
             }
         } else {
             Blockchain blockchain = new Blockchain(0, filePath);
-            demo(blockchain, numberOfNewBlocksToCreate, 0);
+            executeMiningCycle(blockchain);
         }
     }
 
-    public static void demo(Blockchain blockchain, int numberOfNewBlocksToCreate, int initialNumberOfBlocks) {
+    private static void executeMiningCycle(Blockchain blockchain) throws InterruptedException {
+        /* Mining the first block without messages from users */
+        blockchain.getUserMsgDeque().offerLast("no messages");
+        mineNewBlock(blockchain);
 
-        final int NUMBER_OF_PROCESSORS = Runtime.getRuntime().availableProcessors();
-
-        /* First mining without message data */
-        executeMining(blockchain, initialNumberOfBlocks, NUMBER_OF_PROCESSORS, 1);
-        initialNumberOfBlocks += 1;
-
-        /* Create user threads for sending messages to the blcokchain's message queue */
-        ExecutorService userExecutorService = userExecutorService(blockchain, List.of("Jun", "Mike"));
+        /* Create user threads for sending messages to the blcokchain's message deque */
+        ExecutorService userExecutorService = createUserExecutorService(blockchain, List.of("Jun", "Mike"));
         try {
-            logger.trace("userExecutorService is being activated");
+            logger.trace("userExecutorService is waiting for users to be prepared to send messages.");
             TimeUnit.MILLISECONDS.sleep(1000);
         } catch (Exception e) {
-            logger.trace("Exception Occurred while waiting for userExecutorService to be activated", e);
+            logger.info("Exception Occurred while waiting for userExecutorService to be activated", e);
         }
 
-        /* Mining continues */
-        for (int count = 1; count <= numberOfNewBlocksToCreate; count++) {
-            executeMining(blockchain, initialNumberOfBlocks, NUMBER_OF_PROCESSORS, count);
+        /* Mining blocks with messages from users */
+        while (blockchain.getUserMsgDeque().size() < 5) {
+            TimeUnit.MILLISECONDS.sleep(100);
+        }
+        for (int i = 0; i < numberOfNewBlocksToCreate - 1; i++) {
+            mineNewBlock(blockchain);
         }
 
         /* userExecutorService shutdown */
         userExecutorService.shutdownNow();
-        try {
-            boolean terminated = userExecutorService.awaitTermination(10, TimeUnit.MINUTES);
-        } catch (Exception e) {
-            logger.debug("Exception occurred while awaiting executor service termination.", e);
+
+        /* Deleting blockchain.txt */
+        if (isBlockchainFileDeleted) {
+            blockchainFile.delete();
         }
-        logger.trace("userExecutorService has been shut down");
     }
 
-    private static void executeMining(Blockchain blockchain, int initialNumberOfBlocks, int NUMBER_OF_PROCESSORS, int count) {
-        ExecutorService es = Executors.newFixedThreadPool(NUMBER_OF_PROCESSORS);
-        logger.trace("Executor Service has been initiated");
-
-        int id = blockchain.getChain().size() + 1;
-        String latestHash = blockchain.getLastBlockHash();
+    private static void mineNewBlock(Blockchain blockchain) throws InterruptedException {
+        int blockId = blockchain.getChain().size() + 1;
+        String lastBlockHash = blockchain.getLastBlockHash();
         int numOfZeros = blockchain.getNumOfZeros();
-        Queue<String> tempMsgQueue = blockchain.getTemporaryMessagesQueue();
+
+        Deque<String> userMsgDeque = blockchain.getUserMsgDeque();
+        Deque<String> userMsgRollbackStack = new LinkedList<>();
 
         StringBuilder sb = new StringBuilder();
-        synchronized (tempMsgQueue) {
-            while (tempMsgQueue.peek() != null) {
-                sb.append("\n");
-                sb.append(tempMsgQueue.poll());
-            }
-        }
-        if (sb.toString().equals("")) {
-            sb.append("no messages");
+        synchronized (userMsgDeque) {
+            Stream.iterate(0, i -> i + 1)
+                    .limit(5)
+                    .forEach(i -> {
+                        sb.append("\n");
+                        userMsgRollbackStack.offerLast(userMsgDeque.peekFirst());
+                        sb.append(userMsgDeque.pollFirst());
+                    });
         }
         String blockData = sb.toString();
 
-        Runnable blockMiner = () -> {
-            try {
-                logger.trace("Started processing the task");
-                Block newBlock = Block.createBlock(id, latestHash, numOfZeros, blockData);
-                blockchain.addBlock(newBlock);
-            } catch (Exception e) {
-                logger.error("Exception occurred while creating and adding a new block to the blockchain", e);
-            }
-        };
+        ExecutorService miningExecutorService = Executors.newFixedThreadPool(NUMBER_OF_PROCESSORS);
+        logger.trace("miningExecutorService has been initiated");
 
-        for (int j = 0; j < NUMBER_OF_PROCESSORS; j++) {
-            logger.trace("task submitted");
-            es.submit(blockMiner);
-        }
+        Set<BlockMiner> minerSet = Stream.iterate(0, i -> i + 1)
+                .limit(Main.NUMBER_OF_PROCESSORS)
+                .map(i -> new BlockMiner(blockId, lastBlockHash, numOfZeros, blockData))
+                .collect(Collectors.toSet());
 
-        while (blockchain.getChain().size() != count + initialNumberOfBlocks) {
-            try {
-                logger.trace("Going into sleep while execution threads are finding the magic number");
-                Thread.sleep(3000L);
-            } catch (Exception e) {
-                logger.debug("Exception occurred while the main thread goes to sleep", e);
-            }
-        }
-
-        es.shutdownNow();
+        Block newlyCreatedBlock;
         try {
-            boolean terminated;
-            do {
-                terminated = es.awaitTermination(60, TimeUnit.MINUTES);
-            } while (!terminated);
+            newlyCreatedBlock = miningExecutorService.invokeAny(minerSet);
+        } catch (Exception e) {
+            while (userMsgRollbackStack.peekLast() != null) {
+                userMsgDeque.offerFirst(userMsgRollbackStack.pollLast());
+            }
+            logger.debug("Exception occurred while calling invokeAny() method. Messages Rollback Done.", e);
+            return;
+        }
+        blockchain.addBlock(newlyCreatedBlock);
+
+        miningExecutorService.shutdownNow();
+        try {
+            miningExecutorService.awaitTermination(60, TimeUnit.MINUTES);
         } catch (Exception e) {
             logger.debug("Exception occurred while awaiting executor service termination.", e);
         }
-        logger.trace("Executor Service has been shut down");
+        logger.trace("miningExecutorService has been shut down");
     }
 
-    private static ExecutorService userExecutorService(Blockchain blockchain, List<String> userNameList) {
+    private static ExecutorService createUserExecutorService(Blockchain blockchain, List<String> userNameList) {
         logger.trace("userExecutorService starts getting activated");
-        ExecutorService executorService = Executors.newFixedThreadPool(1);
+        int numOfThreads = Math.min(userNameList.size(), 4);
+        ExecutorService userExecutorService = Executors.newFixedThreadPool(numOfThreads);
 
         userNameList.stream()
-                .map(userName -> createNewUser(blockchain, userName))
-                .forEach(executorService::submit);
+                .map(userName -> new User(blockchain, userName))
+                .collect(Collectors.toList())
+                .forEach(userExecutorService::submit);
 
-        return executorService;
-    }
-
-    private static Runnable createNewUser(Blockchain blockchain, String userName) {
-        return () -> {
-            int count = 0;
-            while (count != 100) {
-                Message newMessage = new Message(userName, String.valueOf(Math.random()));
-                blockchain.getTemporaryMessagesQueue().offer(newMessage.toString());
-                try {
-                    TimeUnit.MILLISECONDS.sleep(1000);
-                } catch (Exception e) {
-                    logger.trace("Exception occurred during user going into sleep mode.", e);
-                }
-                ++count;
-            }
-        };
+        return userExecutorService;
     }
 }

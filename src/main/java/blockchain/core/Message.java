@@ -11,7 +11,7 @@ public class Message {
 
     @Override
     public String toString() {
-        return writer + ": " + content;
+        return writer + ": created at " + content;
     }
 
 
