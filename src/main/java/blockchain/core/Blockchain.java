@@ -5,6 +5,8 @@ import org.slf4j.LoggerFactory;
 
 import java.io.*;
 import java.util.ArrayList;
+import java.util.Queue;
+import java.util.concurrent.ConcurrentLinkedQueue;
 
 public class Blockchain implements Serializable {
     private static final long serialVersionUID = 1L;
@@ -14,6 +16,7 @@ public class Blockchain implements Serializable {
     private final ArrayList<Block> chain = new ArrayList<>();
     private int numOfZeros;
     private final String filePath;
+    private final Queue<String> temporaryMessagesQueue = new ConcurrentLinkedQueue<>();
 
     public Blockchain(int numOfZeros, String filePath) {
         this.numOfZeros = numOfZeros;
@@ -134,5 +137,9 @@ public class Blockchain implements Serializable {
 
     public String getFilePath() {
         return filePath;
+    }
+
+    public Queue<String> getTemporaryMessagesQueue() {
+        return temporaryMessagesQueue;
     }
 }

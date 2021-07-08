@@ -16,18 +16,20 @@ public class Block implements Serializable {
     private final String previousHash;
     private final long magic;
     private float generationTime;
+    private final String blockData;
 
 
-    private Block(long minerID, int id, long timestamp, long magic, String previousHash, String hash) {
+    private Block(long minerID, int id, long timestamp, long magic, String previousHash, String hash, String blockData) {
         this.minerID = minerID;
         this.id = id;
         this.timestamp = timestamp;
         this.previousHash = previousHash;
         this.magic = magic;
         this.hash = hash;
+        this.blockData = blockData;
     }
 
-    public static Block createBlock(int id, String previousHash, int numOfZeros) {
+    public static Block createBlock(int id, String previousHash, int numOfZeros, String blockData) {
 
         long minerID = Thread.currentThread().getId();
         long timestamp = new Date().getTime();
@@ -40,11 +42,11 @@ public class Block implements Serializable {
 
         do {
             magic = Integer.toUnsignedLong(rand.nextInt());
-            allFieldsCombined = Block.concatFields(minerID, id, timestamp, magic, previousHash);
+            allFieldsCombined = Block.concatFields(minerID, id, timestamp, magic, previousHash, blockData);
             hash = StringUtil.applySha256(allFieldsCombined);
         } while (!hash.substring(0, numOfZeros).equals("0".repeat(numOfZeros)));
 
-        Block block = new Block(minerID, id, timestamp, magic, previousHash, hash);
+        Block block = new Block(minerID, id, timestamp, magic, previousHash, hash, blockData);
 
         long endTime = new Date().getTime();
         float elapsedTime = (float) (endTime - startTime) / 1000;
@@ -54,60 +56,47 @@ public class Block implements Serializable {
     }
 
     static String calculateHash(Block block) {
-        String allFieldsCombined = Block.concatFields(block.getMinerID(), block.getId(), block.getTimestamp(), block.getMagic(), block.getPreviousHash());
+        String allFieldsCombined = Block.concatFields(block.minerID, block.id, block.timestamp, block.magic, block.previousHash, block.blockData);
         return StringUtil.applySha256(allFieldsCombined);
     }
 
-    private static String concatFields(long minerID, int id, long timestamp, long magic, String previousHash) {
-        return minerID + id + timestamp + magic + previousHash ;
+    private static String concatFields(long minerID, int id, long timestamp, long magic, String previousHash, String blockData) {
+        return minerID + id + timestamp + magic + previousHash + blockData ;
     }
 
     void printBlock() {
         StringBuilder sb = new StringBuilder();
         sb.append(
                 "Block:\n"
-                + "Created by miner # " + getMinerID() + "\n"
-                + "Id: " + getId() + "\n"
-                + "Timestamp: " + getTimestamp() + "\n"
-                + "Magic number: " + getMagic() + "\n"
+                + "Created by miner # " + minerID + "\n"
+                + "Id: " + id + "\n"
+                + "Timestamp: " + timestamp + "\n"
+                + "Magic number: " + magic + "\n"
                 + "Hash of the previous block: \n"
-                + getPreviousHash() + "\n"
+                + previousHash + "\n"
                 + "Hash of the block: \n"
-                + getHash() + "\n"
+                + hash + "\n"
+                + "Block data: "
+                + blockData
         );
-        sb.append(String.format("Block was generating for %.1f seconds", getGenerationTime()));
+        sb.append(String.format("\nBlock was generating for %.1f seconds", generationTime));
         System.out.println(sb.toString());
-    }
-
-    String getHash() {
-        return hash;
-    }
-
-    String getPreviousHash() {
-        return previousHash;
-    }
-
-    int getId() {
-        return id;
-    }
-
-    long getTimestamp() {
-        return timestamp;
-    }
-
-    long getMagic() {
-        return magic;
-    }
-
-    float getGenerationTime() {
-        return generationTime;
     }
 
     private void setGenerationTime(float generationTime) {
         this.generationTime = generationTime;
     }
 
-    long getMinerID() {
-        return minerID;
+    public String getHash() {
+        return hash;
     }
+
+    public String getPreviousHash() {
+        return previousHash;
+    }
+
+    public float getGenerationTime() {
+        return generationTime;
+    }
+
 }
