@@ -11,7 +11,7 @@
         </File>
     </Appenders>
     <Loggers>
-        <Logger name="blockchain" level="debug" additivity="true">
+        <Logger name="blockchain" level="trace" additivity="true">
             <AppenderRef ref="Console"/>
         </Logger>
         <Root level="debug">

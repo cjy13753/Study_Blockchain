@@ -15,12 +15,12 @@ public class Blockchain implements Serializable {
 
     private final ArrayList<Block> chain = new ArrayList<>();
     private int numOfZeros;
-    private final String filePath;
+    private final File blockChainFile;
     private final Deque<Message> userMsgDeque = new ConcurrentLinkedDeque<>();
 
-    public Blockchain(int numOfZeros, String filePath) {
+    public Blockchain(int numOfZeros, File blockChainFile) {
         this.numOfZeros = numOfZeros;
-        this.filePath = filePath;
+        this.blockChainFile = blockChainFile;
     }
 
     public void addBlock(Block newBlock) {
@@ -60,7 +60,7 @@ public class Blockchain implements Serializable {
 
     private void writeBlockchainToFile(Blockchain blockchain) {
         try {
-            FileOutputStream fis = new FileOutputStream(getFilePath());
+            FileOutputStream fis = new FileOutputStream(blockChainFile);
             BufferedOutputStream bos = new BufferedOutputStream(fis);
             ObjectOutputStream oos = new ObjectOutputStream(bos);
 
@@ -133,10 +133,6 @@ public class Blockchain implements Serializable {
 
     public void setNumOfZeros(int numOfZeros) {
         this.numOfZeros = numOfZeros;
-    }
-
-    public String getFilePath() {
-        return filePath;
     }
 
     public Deque<Message> getUserMsgDeque() {
