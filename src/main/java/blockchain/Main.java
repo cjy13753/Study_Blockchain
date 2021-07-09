@@ -17,7 +17,7 @@ public class Main {
     /* Configuration */
     private static final Logger logger = LoggerFactory.getLogger(Main.class);
     private static final String filePath = "./blockchain.txt";
-    private static final int numberOfNewBlocksToCreate = 5;
+    private static final int numberOfNewBlocksToCreate = 3;
     private static final File blockchainFile = new File(filePath);
     private static final int NUMBER_OF_PROCESSORS = Runtime.getRuntime().availableProcessors();
     private static final boolean isBlockchainFileDeleted = true;
@@ -40,10 +40,9 @@ public class Main {
 
     private static void executeMiningCycle(Blockchain blockchain) throws InterruptedException {
         /* Mining the first block without messages from users */
-        blockchain.getUserMsgDeque().offerLast("no messages");
         mineNewBlock(blockchain);
 
-        /* Create user threads for sending messages to the blcokchain's message deque */
+        /* Create user threads for sending messages to the blockchain's message deque */
         ExecutorService userExecutorService = createUserExecutorService(blockchain, List.of("Jun", "Mike"));
         try {
             logger.trace("userExecutorService is waiting for users to be prepared to send messages.");
@@ -67,34 +66,34 @@ public class Main {
         if (isBlockchainFileDeleted) {
             blockchainFile.delete();
         }
+        logger.trace("File successfully deleted.");
     }
 
-    private static void mineNewBlock(Blockchain blockchain) throws InterruptedException {
+    private static void mineNewBlock(Blockchain blockchain) {
+        ExecutorService miningExecutorService = Executors.newFixedThreadPool(NUMBER_OF_PROCESSORS);
+        logger.trace("miningExecutorService has been initiated");
+
         int blockId = blockchain.getChain().size() + 1;
         String lastBlockHash = blockchain.getLastBlockHash();
         int numOfZeros = blockchain.getNumOfZeros();
 
-        Deque<String> userMsgDeque = blockchain.getUserMsgDeque();
-        Deque<String> userMsgRollbackStack = new LinkedList<>();
-
-        StringBuilder sb = new StringBuilder();
+        Deque<Message> userMsgDeque = blockchain.getUserMsgDeque();
+        List<Message> tmpMessageContainer = new ArrayList<>();
+        Deque<Message> userMsgRollbackStack = new LinkedList<>();
         synchronized (userMsgDeque) {
-            Stream.iterate(0, i -> i + 1)
-                    .limit(5)
-                    .forEach(i -> {
-                        sb.append("\n");
-                        userMsgRollbackStack.offerLast(userMsgDeque.peekFirst());
-                        sb.append(userMsgDeque.pollFirst());
-                    });
+            for (int i = 0; i < 5; i++) {
+                if (!userMsgDeque.isEmpty()) {
+                    userMsgRollbackStack.offerLast(userMsgDeque.peekFirst());
+                    tmpMessageContainer.add(userMsgDeque.pollFirst());
+                }
+            }
         }
-        String blockData = sb.toString();
 
-        ExecutorService miningExecutorService = Executors.newFixedThreadPool(NUMBER_OF_PROCESSORS);
-        logger.trace("miningExecutorService has been initiated");
+        List<Message> immutableMessageList = Collections.unmodifiableList(tmpMessageContainer);
 
         Set<BlockMiner> minerSet = Stream.iterate(0, i -> i + 1)
                 .limit(Main.NUMBER_OF_PROCESSORS)
-                .map(i -> new BlockMiner(blockId, lastBlockHash, numOfZeros, blockData))
+                .map(i -> new BlockMiner(blockId, lastBlockHash, numOfZeros, immutableMessageList))
                 .collect(Collectors.toSet());
 
         Block newlyCreatedBlock;

@@ -16,7 +16,7 @@ public class Blockchain implements Serializable {
     private final ArrayList<Block> chain = new ArrayList<>();
     private int numOfZeros;
     private final String filePath;
-    private final Deque<String> userMsgDeque = new ConcurrentLinkedDeque<>();
+    private final Deque<Message> userMsgDeque = new ConcurrentLinkedDeque<>();
 
     public Blockchain(int numOfZeros, String filePath) {
         this.numOfZeros = numOfZeros;
@@ -139,7 +139,7 @@ public class Blockchain implements Serializable {
         return filePath;
     }
 
-    public Deque<String> getUserMsgDeque() {
+    public Deque<Message> getUserMsgDeque() {
         return userMsgDeque;
     }
 }

@@ -24,7 +24,7 @@ public class User implements Callable<Integer> {
         int count = 0;
         while (count != 1000) {
             Message newMessage = new Message(userName, String.valueOf(LocalDateTime.now()));
-            blockchain.getUserMsgDeque().offerLast(newMessage.toString());
+            blockchain.getUserMsgDeque().offerLast(newMessage);
             try {
                 TimeUnit.MILLISECONDS.sleep(100);
             } catch (Exception e) {

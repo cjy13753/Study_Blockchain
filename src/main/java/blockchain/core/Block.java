@@ -1,12 +1,18 @@
 package blockchain.core;
 
+import blockchain.Main;
 import blockchain.utility.StringUtil;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.Serializable;
 import java.util.Date;
+import java.util.List;
 import java.util.Random;
+import java.util.stream.Collectors;
 
 public class Block implements Serializable {
+    private static final Logger logger = LoggerFactory.getLogger(Block.class);
     private static final long serialVersionUID = 1L;
 
     private final long minerID;
@@ -16,20 +22,20 @@ public class Block implements Serializable {
     private final String previousHash;
     private final long magic;
     private float generationTime;
-    private final String blockData;
+    private final List<Message> messageList;
 
 
-    private Block(long minerID, int id, long timestamp, long magic, String previousHash, String hash, String blockData) {
+    private Block(long minerID, int id, long timestamp, long magic, String previousHash, String hash, List<Message> messageList) {
         this.minerID = minerID;
         this.id = id;
         this.timestamp = timestamp;
         this.previousHash = previousHash;
         this.magic = magic;
         this.hash = hash;
-        this.blockData = blockData;
+        this.messageList = messageList;
     }
 
-    public static Block createBlock(int id, String previousHash, int numOfZeros, String blockData) {
+    public static Block createBlock(int id, String previousHash, int numOfZeros, List<Message> messageList) {
 
         long minerID = Thread.currentThread().getId();
         long timestamp = new Date().getTime();
@@ -42,11 +48,11 @@ public class Block implements Serializable {
 
         do {
             magic = Integer.toUnsignedLong(rand.nextInt());
-            allFieldsCombined = Block.concatFields(minerID, id, timestamp, magic, previousHash, blockData);
+            allFieldsCombined = Block.concatFields(minerID, id, timestamp, magic, previousHash, messageList);
             hash = StringUtil.applySha256(allFieldsCombined);
         } while (!hash.substring(0, numOfZeros).equals("0".repeat(numOfZeros)));
 
-        Block block = new Block(minerID, id, timestamp, magic, previousHash, hash, blockData);
+        Block block = new Block(minerID, id, timestamp, magic, previousHash, hash, messageList);
 
         long endTime = new Date().getTime();
         float elapsedTime = (float) (endTime - startTime) / 1000;
@@ -56,15 +62,29 @@ public class Block implements Serializable {
     }
 
     static String calculateHash(Block block) {
-        String allFieldsCombined = Block.concatFields(block.minerID, block.id, block.timestamp, block.magic, block.previousHash, block.blockData);
+        String allFieldsCombined = Block.concatFields(
+                block.getMinerID(),
+                block.getId(),
+                block.getTimestamp(),
+                block.getMagic(),
+                block.getPreviousHash(),
+                block.getMessageList());
         return StringUtil.applySha256(allFieldsCombined);
     }
 
-    private static String concatFields(long minerID, int id, long timestamp, long magic, String previousHash, String blockData) {
-        return minerID + id + timestamp + magic + previousHash + blockData ;
+    private static String concatFields(long minerID, int id, long timestamp, long magic, String previousHash, List<Message> messageList) {
+        String blockData = messageList.stream()
+                .map(Message::toStringForHashGeneration)
+                .collect(Collectors.joining());
+        return minerID + id + timestamp + magic + previousHash + blockData;
     }
 
     void printBlock() {
+        String blockData = messageList.stream()
+                .map(Message::toString)
+                .collect(Collectors.joining("\n"));
+        blockData = blockData.equals("") ? "no messages" : "\n" + blockData;
+
         StringBuilder sb = new StringBuilder();
         sb.append(
                 "Block:\n"
@@ -99,4 +119,23 @@ public class Block implements Serializable {
         return generationTime;
     }
 
+    public long getMinerID() {
+        return minerID;
+    }
+
+    public int getId() {
+        return id;
+    }
+
+    public long getTimestamp() {
+        return timestamp;
+    }
+
+    public long getMagic() {
+        return magic;
+    }
+
+    public List<Message> getMessageList() {
+        return messageList;
+    }
 }
