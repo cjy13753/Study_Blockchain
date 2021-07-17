@@ -6,6 +6,7 @@ import org.slf4j.LoggerFactory;
 import java.io.*;
 import java.util.ArrayList;
 import java.util.Deque;
+import java.util.List;
 import java.util.concurrent.ConcurrentLinkedDeque;
 
 public class Blockchain implements Serializable {
@@ -17,6 +18,9 @@ public class Blockchain implements Serializable {
     private int numOfZeros;
     private final File blockChainFile;
     private final Deque<Message> userMsgDeque = new ConcurrentLinkedDeque<>();
+    private int messageId = 0;
+
+    private int maxMsgIdOfBlockUnderConstruction = -1;
 
     public Blockchain(int numOfZeros, File blockChainFile) {
         this.numOfZeros = numOfZeros;
@@ -103,11 +107,27 @@ public class Blockchain implements Serializable {
         return true;
     }
 
+    // [Refactoring Needed] This method assumes that the first block has no messages.
     public boolean isLoadedChainValid() {
-        ArrayList<Block> chainArray = getChain();
-        for (int i = 1; i < chainArray.size(); i++) {
-            String hashOfPreviousBlock = Block.calculateHash(chainArray.get(i - 1));
-            String previousHash = chainArray.get(i).getPreviousHash();
+        for (int i = 1; i < chain.size(); i++) {
+            /* Message Id and signature verification*/
+            List<Message> prevBlockMsgList = chain.get(i - 1).getMessageList();
+            int prevBlockMaxId = prevBlockMsgList.isEmpty() ? -1 : prevBlockMsgList.get(prevBlockMsgList.size() - 1).getId();
+
+            List<Message> currBlockMsgList = chain.get(i).getMessageList();
+            for (Message message : currBlockMsgList) {
+                if (message.getId() <= prevBlockMaxId) return false;
+                try {
+                    if (!message.verifySignature()) return false;
+                } catch (Exception e) {
+                    logger.error("Exception occurred verifying message signature while loading blockchain file.", e);
+                    System.exit(1);
+                }
+            }
+
+            /* Hash verification */
+            String hashOfPreviousBlock = Block.calculateHash(chain.get(i - 1));
+            String previousHash = chain.get(i).getPreviousHash();
             if (!previousHash.equals(hashOfPreviousBlock)) {
                 logger.error("This blockchain is contaminated at block index # {}.", i - 1);
                 return false;
@@ -116,11 +136,33 @@ public class Blockchain implements Serializable {
         return true;
     }
 
-    public void printAllBlock() {
-        ArrayList<Block> chain = getChain();
-        for (int i = 0; i < chain.size(); i++) {
-            chain.get(i).printBlock();
+    public synchronized int retrieveMessageId() {
+        return messageId++;
+    }
+
+    public boolean pushMessage(Message newMessage) {
+        if (verifyMessage(newMessage)) {
+            userMsgDeque.offerLast(newMessage);
+            return true;
+        } else {
+            return false;
         }
+    }
+
+    private boolean verifyMessage(Message newMessage) {
+        try {
+            if (!newMessage.verifySignature()) {
+                logger.info("Signature verification failed.");
+                return false;
+            }
+        } catch (Exception e) {
+            logger.error("Exception Occurred while verifying new messages being pushed to the blockchain.", e);
+        }
+        if (!(newMessage.getId() > maxMsgIdOfBlockUnderConstruction)) {
+            logger.info("Message id requirement is unmet.");
+            return false;
+        }
+        return true;
     }
 
     public ArrayList<Block> getChain() {
@@ -137,5 +179,13 @@ public class Blockchain implements Serializable {
 
     public Deque<Message> getUserMsgDeque() {
         return userMsgDeque;
+    }
+
+    public int getMaxMsgIdOfBlockUnderConstruction() {
+        return maxMsgIdOfBlockUnderConstruction;
+    }
+
+    public void setMaxMsgIdOfBlockUnderConstruction(int maxMsgIdOfBlockUnderConstruction) {
+        this.maxMsgIdOfBlockUnderConstruction = maxMsgIdOfBlockUnderConstruction;
     }
 }

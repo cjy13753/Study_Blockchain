@@ -17,7 +17,10 @@ public class MiningUtility {
 
     public static void executeMiningCycle(Blockchain blockchain, int NUMBER_OF_PROCESSORS, int numberOfNewBlocksToCreate) throws InterruptedException {
         /* Mining the first block without messages from users */
-        mineNewBlock(blockchain, NUMBER_OF_PROCESSORS);
+        if (blockchain.getChain().isEmpty()) {
+            mineNewBlock(blockchain, NUMBER_OF_PROCESSORS);
+            --numberOfNewBlocksToCreate;
+        }
 
         /* Create user threads for sending messages to the blockchain's message deque */
         ExecutorService userExecutorService = createUserExecutorService(blockchain, List.of("Jun", "Mike"));
@@ -32,7 +35,7 @@ public class MiningUtility {
         while (blockchain.getUserMsgDeque().size() < 5) {
             TimeUnit.MILLISECONDS.sleep(100);
         }
-        for (int i = 0; i < numberOfNewBlocksToCreate - 1; i++) {
+        for (int i = 0; i < numberOfNewBlocksToCreate; i++) {
             mineNewBlock(blockchain, NUMBER_OF_PROCESSORS);
         }
 
@@ -41,6 +44,9 @@ public class MiningUtility {
     }
 
     private static void mineNewBlock(Blockchain blockchain, int NUMBER_OF_PROCESSORS) {
+        int MINIMUM_BLOCK_SIZE = 5;
+        int MAXIMUM_BLOCK_SIZE = 10;
+
         ExecutorService miningExecutorService = Executors.newFixedThreadPool(NUMBER_OF_PROCESSORS);
         logger.trace("miningExecutorService has been initiated");
 
@@ -51,9 +57,22 @@ public class MiningUtility {
         Deque<Message> userMsgDeque = blockchain.getUserMsgDeque();
         List<Message> tmpMessageContainer = new ArrayList<>();
         Deque<Message> userMsgRollbackStack = new LinkedList<>();
-        synchronized (userMsgDeque) {
-            for (int i = 0; i < 5; i++) {
-                if (!userMsgDeque.isEmpty()) {
+        int tmpMaxMsgIdForRollBack = blockchain.getMaxMsgIdOfBlockUnderConstruction();
+
+        if (!blockchain.getChain().isEmpty()) {
+            while (userMsgDeque.size() < MINIMUM_BLOCK_SIZE) {
+                try {
+                    logger.trace("Waiting for userMsgDeque to fill up.");
+                    TimeUnit.MILLISECONDS.sleep(100);
+                } catch (Exception e) {
+                    logger.error("Exception occurred while waiting for userMsgDeque to fill up.", e);
+                }
+            };
+
+            synchronized (userMsgDeque) {
+                int newBlockDataSize = Math.min(userMsgDeque.size(), MAXIMUM_BLOCK_SIZE);
+                for (int i = 0; i < newBlockDataSize; i++) {
+                    blockchain.setMaxMsgIdOfBlockUnderConstruction(userMsgDeque.peekFirst().getId());
                     userMsgRollbackStack.offerLast(userMsgDeque.peekFirst());
                     tmpMessageContainer.add(userMsgDeque.pollFirst());
                 }
@@ -61,7 +80,6 @@ public class MiningUtility {
         }
 
         List<Message> immutableMessageList = Collections.unmodifiableList(tmpMessageContainer);
-
         Set<BlockMiner> minerSet = Stream.iterate(0, i -> i + 1)
                 .limit(NUMBER_OF_PROCESSORS)
                 .map(i -> new BlockMiner(blockId, lastBlockHash, numOfZeros, immutableMessageList))
@@ -71,9 +89,11 @@ public class MiningUtility {
         try {
             newlyCreatedBlock = miningExecutorService.invokeAny(minerSet);
         } catch (Exception e) {
+            /* Message roll back */
             while (userMsgRollbackStack.peekLast() != null) {
                 userMsgDeque.offerFirst(userMsgRollbackStack.pollLast());
             }
+            blockchain.setMaxMsgIdOfBlockUnderConstruction(tmpMaxMsgIdForRollBack);
             logger.debug("Exception occurred while calling invokeAny() method. Messages Rollback Done.", e);
             return;
         }
@@ -92,6 +112,10 @@ public class MiningUtility {
         logger.trace("userExecutorService starts getting activated");
         int numOfThreads = Math.min(userNameList.size(), 4);
         ExecutorService userExecutorService = Executors.newFixedThreadPool(numOfThreads);
+
+        for (String username : userNameList) {
+
+        }
 
         userNameList.stream()
                 .map(userName -> new User(blockchain, userName))

@@ -1,8 +1,6 @@
 package blockchain.core;
 
 import blockchain.utility.StringUtil;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import java.io.Serializable;
 import java.util.Date;
@@ -11,7 +9,6 @@ import java.util.Random;
 import java.util.stream.Collectors;
 
 public class Block implements Serializable {
-    private static final Logger logger = LoggerFactory.getLogger(Block.class);
     private static final long serialVersionUID = 1L;
 
     private final long minerID;
@@ -84,8 +81,7 @@ public class Block implements Serializable {
                 .collect(Collectors.joining("\n"));
         blockData = blockData.equals("") ? "no messages" : "\n" + blockData;
 
-        StringBuilder sb = new StringBuilder();
-        sb.append(
+        String s =
                 "Block:\n"
                 + "Created by miner # " + minerID + "\n"
                 + "Id: " + id + "\n"
@@ -96,10 +92,9 @@ public class Block implements Serializable {
                 + "Hash of the block: \n"
                 + hash + "\n"
                 + "Block data: "
-                + blockData
-        );
-        sb.append(String.format("\nBlock was generating for %.1f seconds", generationTime));
-        System.out.println(sb.toString());
+                + blockData;
+        s += String.format("\nBlock was generating for %.1f seconds", generationTime);
+        System.out.println(s);
     }
 
     private void setGenerationTime(float generationTime) {
